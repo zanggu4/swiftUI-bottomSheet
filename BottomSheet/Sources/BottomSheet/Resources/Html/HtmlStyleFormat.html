@@ -1,0 +1,136 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+            <style type="text/css">
+<!--                case thin = 100-->
+<!--                case extraLight = 200-->
+<!--                case light = 300-->
+<!--                case regular = 400-->
+<!--                case medium = 500-->
+<!--                case semiBold = 600-->
+<!--                case bold = 700-->
+<!--                case extraBold = 800-->
+<!--                case heavy = 900-->
+                
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Thin.otf") format('opentype');
+                font-weight: 100;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-ExtraLight.otf") format('opentype');
+                font-weight: 200;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Light.otf") format('opentype');
+                font-weight: 300;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Regular.otf") format('opentype');
+                font-weight: 400;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Medium.otf") format('opentype');
+                font-weight: 500;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-SemiBold.otf") format('opentype');
+                font-weight: 600;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Bold.otf") format('opentype');
+                font-weight: 700;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-ExtraBold.otf") format('opentype');
+                font-weight: 800;
+                }
+                @font-face {
+                font-family: "SUIT";
+                src: url("SUIT-Heavy.otf") format('opentype');
+                font-weight: 900;
+                }
+                a:link {
+                    text-decoration: none;
+                    color: #FC0167;
+                }
+
+                a:visited {
+                    text-decoration: none;
+                    color: #FC0167;
+                }
+
+                a:active {
+                    text-decoration: none;
+                    color: #FC0167;
+                }
+
+                a:hover {
+                    text-decoration: none;
+                    color: #FC0167;
+                }
+
+                ul {
+                    margin: 10px 0px 15px 0px;
+                    padding-left: 20px;
+                }
+
+                ol {
+                    margin: 10px 0px 15px 0px;
+                    padding-left: 20px;
+                }
+
+                ul li {
+                    list-style-type: none;
+                    margin: 0;
+                    position: relative;
+                }
+
+                ul li::before {
+                    content: '•';
+                    position: absolute;
+                    left: -1.1em;
+                    font-size: 1.1em;
+                }
+
+                ol li {
+                    list-style-type: none;
+                    margin: 0;
+                    position: relative;
+                }
+
+                ol li::before {
+                    content: '•';
+                    position: absolute;
+                    left: -1.1em;
+                    font-size: 1.1em;
+                }
+
+                img {
+                    width: 100%%;
+                    border-radius: 4px;
+                }
+
+                body {
+                    margin: 0;
+                    padding: 0;
+                    line-height: 1.7;
+                    font-family: "SUIT";
+                    font-weight: %d;
+                    font-size: %fpx;
+                    color: %@;
+                }
+            </style>
+    </head>
+    <body>
+    %@
+    </body>
+</html>
+
