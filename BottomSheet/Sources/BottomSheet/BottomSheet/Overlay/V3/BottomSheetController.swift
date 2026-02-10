@@ -186,6 +186,10 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         // Header drag gesture
         let headerPan = UIPanGestureRecognizer(target: self, action: #selector(handleHeaderPanGesture(_:)))
         headerContainerView.addGestureRecognizer(headerPan)
+
+        // Background tap to dismiss
+        let backgroundTap = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap(_:)))
+        view.addGestureRecognizer(backgroundTap)
     }
 
     private func setupAnimator() {
@@ -276,6 +280,12 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
     }
 
     // MARK: - Gesture Actions
+
+    @objc private func handleBackgroundTap(_ gesture: UITapGestureRecognizer) {
+        let location = gesture.location(in: view)
+        guard !sheetView.frame.contains(location) else { return }
+        dismissSheet()
+    }
 
     @objc private func handleEdgeSwipeGesture(_ gesture: UIScreenEdgePanGestureRecognizer) {
         gestureHandler?.handleEdgeSwipe(gesture)
