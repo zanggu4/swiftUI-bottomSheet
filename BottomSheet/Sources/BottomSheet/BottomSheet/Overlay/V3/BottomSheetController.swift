@@ -134,12 +134,11 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         sheetView.addSubview(scrollView)
 
-        // Content hosting controller
+        // Content hosting controller (frame-based layout to avoid iOS 15 systemLayoutSizeFitting oscillation)
         let wrappedContent = content.ignoresSafeArea(edges: .bottom)
         let contentHosting = ControlledHostingController(rootView: wrappedContent)
         contentHosting.adjustsSafeAreaTop = true
         contentHosting.view.backgroundColor = .clear
-        contentHosting.view.translatesAutoresizingMaskIntoConstraints = false
         addChild(contentHosting)
         scrollView.addSubview(contentHosting.view)
         contentHosting.didMove(toParent: self)
@@ -167,12 +166,6 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
             scrollView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
             scrollView.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
-
-            contentHosting.view.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-            contentHosting.view.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            contentHosting.view.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            contentHosting.view.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-            contentHosting.view.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor),
         ])
 
         // Sheet height constraint (will be updated)
@@ -235,8 +228,9 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         guard let contentHosting = contentHostingController else { return }
         guard !scrollView.isDragging, !scrollView.isDecelerating else { return }
 
+        let width = view.bounds.width
         let targetSize = CGSize(
-            width: view.bounds.width,
+            width: width,
             height: UIView.layoutFittingCompressedSize.height,
         )
 
@@ -250,15 +244,16 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
             headerHeight = headerSize.height
         }
 
-        let contentSize = contentHosting.view.systemLayoutSizeFitting(
-            targetSize,
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel,
-        )
+        // Frame-based sizing for content (avoids iOS 15 systemLayoutSizeFitting oscillation in UIScrollView)
+        let contentHeight = contentHosting.view.sizeThatFits(
+            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
+        ).height
+        contentHosting.view.frame = CGRect(x: 0, y: 0, width: width, height: contentHeight)
+        scrollView.contentSize = CGSize(width: width, height: contentHeight)
 
         let safeAreaBottom = view.safeAreaInsets.bottom
         let maxHeight = view.bounds.height * maxHeightRatio
-        let calculatedHeight = headerHeight + contentSize.height + safeAreaBottom
+        let calculatedHeight = headerHeight + contentHeight + safeAreaBottom
         let finalHeight = min(calculatedHeight, maxHeight)
 
         if headerHeightConstraint?.constant != headerHeight {
