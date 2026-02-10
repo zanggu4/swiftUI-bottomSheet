@@ -64,8 +64,20 @@ struct ContentView: View {
         }
         .overlaySheet(
             isPresented: $showHeaderSheet,
+            header: {
+                Text("Header")
+                    .background(Color.red)
+            },
             content: {
-                HeaderSheetContent()
+                VStack {
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                }
+                .background(Color.blue)
             }
         )
         .overlaySheet(isPresented: $showLongContentSheet) {
@@ -77,12 +89,24 @@ struct ContentView: View {
         .overlaySheet(item: $selectedItem) { item in
             ItemSheetContent(item: item)
         }
-
-        // MARK: - Present Sheet
-
-        .presentBottomSheet(isPresented: $showPresentSheet) {
-            PresentSheetContent(onDismiss: { showPresentSheet = false })
-        }
+        .presentBottomSheet(
+            isPresented: $showPresentSheet,
+            header: {
+                Text("Header")
+                    .background(Color.red)
+            },
+            content: {
+                VStack {
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                    Text("Content")
+                }
+                .background(Color.blue)
+            }
+        )
     }
 }
 

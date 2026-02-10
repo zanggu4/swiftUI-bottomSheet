@@ -19,13 +19,13 @@ final class KeyboardAvoidingBehavior {
     private weak var view: UIView?
     private weak var bottomConstraint: NSLayoutConstraint?
 
+    /// The current keyboard-induced offset (0 when keyboard is hidden).
+    /// Controller uses this to restore keyboard offset after constraint replacement.
+    private(set) var currentKeyboardHeight: CGFloat = 0
+
     // MARK: - Init
 
     init() {}
-
-    deinit {
-        stopObserving()
-    }
 
     // MARK: - Public Methods
 
@@ -64,8 +64,12 @@ final class KeyboardAvoidingBehavior {
         guard let keyboardFrame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
               let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else { return }
 
+        let safeBottom = view?.safeAreaInsets.bottom ?? 0
+        let adjustedHeight = max(0, keyboardFrame.height - safeBottom)
+        currentKeyboardHeight = adjustedHeight
+
         let curve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 7
-        bottomConstraint?.constant = -keyboardFrame.height
+        bottomConstraint?.constant = -adjustedHeight
 
         UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) { [weak self] in
             self?.view?.layoutIfNeeded()
@@ -74,6 +78,8 @@ final class KeyboardAvoidingBehavior {
 
     @objc private func keyboardWillHide(_ notification: Notification) {
         guard let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double else { return }
+
+        currentKeyboardHeight = 0
 
         let curve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 7
         bottomConstraint?.constant = 0

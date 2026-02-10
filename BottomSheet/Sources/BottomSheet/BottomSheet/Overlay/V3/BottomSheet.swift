@@ -8,6 +8,24 @@
 
 import SwiftUI
 
+// MARK: - onChange Compatibility
+
+@available(iOS 15.0, *)
+private extension View {
+    @ViewBuilder
+    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
+        if #available(iOS 17.0, *) {
+            onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        } else {
+            onChange(of: value) { newValue in
+                action(newValue)
+            }
+        }
+    }
+}
+
 // MARK: - View Modifier
 
 @available(iOS 15.0, *)
@@ -93,7 +111,7 @@ struct BottomSheetModifier<SheetHeader: View, SheetContent: View>: ViewModifier 
                 .zIndex(10)
             }
         }
-        .onChange(of: isPresented) { newValue in
+        .onChangeCompat(of: isPresented) { newValue in
             if newValue {
                 showSheet = true
             } else if showSheet {
@@ -122,6 +140,7 @@ struct BottomSheetItemModifier<Item, SheetHeader: View, SheetContent: View>: Vie
     func body(content: Content) -> some View {
         ZStack {
             content
+                .zIndex(1)
             if showSheet, let captured = capturedItem {
                 BottomSheetView(
                     header: header,
@@ -136,9 +155,10 @@ struct BottomSheetItemModifier<Item, SheetHeader: View, SheetContent: View>: Vie
                         capturedItem = nil
                     },
                 )
+                .zIndex(10)
             }
         }
-        .onChange(of: item != nil) { hasItem in
+        .onChangeCompat(of: item != nil) { hasItem in
             if hasItem, let unwrapped = item {
                 capturedItem = unwrapped
                 showSheet = true
@@ -153,7 +173,7 @@ struct BottomSheetItemModifier<Item, SheetHeader: View, SheetContent: View>: Vie
 
 /// A bottom sheet overlay that can be dismissed by dragging down or tapping the dimmed background.
 @available(iOS 15.0, *)
-public struct BottomSheetView<Header: View, Content: View>: View {
+struct BottomSheetView<Header: View, Content: View>: View {
     let header: () -> Header
     let content: () -> Content
     let maxHeightRatio: CGFloat
@@ -164,7 +184,7 @@ public struct BottomSheetView<Header: View, Content: View>: View {
 
     @State private var dragProgress: CGFloat = 1 // Start hidden
 
-    public init(
+    init(
         @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content,
         maxHeightRatio: CGFloat = 0.9,
@@ -182,7 +202,7 @@ public struct BottomSheetView<Header: View, Content: View>: View {
         self.onDismiss = onDismiss
     }
 
-    public var body: some View {
+    var body: some View {
         ZStack {
             // Dim overlay (SwiftUI)
             Color.black

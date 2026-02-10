@@ -17,12 +17,6 @@ final class BottomSheetAnimator {
 
     private weak var sheetView: UIView?
     private weak var containerView: UIView?
-    private var sheetBottomConstraint: NSLayoutConstraint?
-
-    var onDragProgressChanged: ((CGFloat, Bool) -> Void)?
-
-    /// Called when the bottom constraint is replaced during animation.
-    var onBottomConstraintChanged: ((NSLayoutConstraint) -> Void)?
 
     // MARK: - Init
 
@@ -31,26 +25,13 @@ final class BottomSheetAnimator {
         self.containerView = containerView
     }
 
-    // MARK: - Constraint Management
-
-    func setBottomConstraint(_ constraint: NSLayoutConstraint?) {
-        sheetBottomConstraint = constraint
-    }
-
     // MARK: - Animations
 
-    func showAnimation(completion: (() -> Void)? = nil) {
-        guard let sheetView, let containerView else { return }
-
-        containerView.layoutIfNeeded()
-
-        sheetBottomConstraint?.isActive = false
-        let newConstraint = sheetView.bottomAnchor.constraint(equalTo: containerView.bottomAnchor)
-        newConstraint.isActive = true
-        sheetBottomConstraint = newConstraint
-        onBottomConstraintChanged?(newConstraint)
-
-        onDragProgressChanged?(0, false)
+    func animateSpringLayout(completion: (() -> Void)? = nil) {
+        guard let containerView else {
+            completion?()
+            return
+        }
 
         UIView.animate(
             withDuration: SheetConstants.showAnimationDuration,
@@ -65,19 +46,11 @@ final class BottomSheetAnimator {
         }
     }
 
-    func hideAnimation(completion: (() -> Void)? = nil) {
-        guard let sheetView, let containerView else {
+    func animateEaseOutLayout(completion: (() -> Void)? = nil) {
+        guard let containerView else {
             completion?()
             return
         }
-
-        sheetBottomConstraint?.isActive = false
-        let newConstraint = sheetView.topAnchor.constraint(equalTo: containerView.bottomAnchor)
-        newConstraint.isActive = true
-        sheetBottomConstraint = newConstraint
-        onBottomConstraintChanged?(newConstraint)
-
-        onDragProgressChanged?(1, true)
 
         UIView.animate(
             withDuration: SheetConstants.hideAnimationDuration,
@@ -90,7 +63,7 @@ final class BottomSheetAnimator {
         }
     }
 
-    func snapBackAnimation(completion: (() -> Void)? = nil) {
+    func animateSnapBack(completion: (() -> Void)? = nil) {
         guard let sheetView, let containerView else {
             completion?()
             return
@@ -110,14 +83,13 @@ final class BottomSheetAnimator {
         }
     }
 
-    func slideOutRightAnimation(completion: (() -> Void)? = nil) {
+    func animateSlideOutRight(completion: (() -> Void)? = nil) {
         guard let sheetView else {
             completion?()
             return
         }
 
         let sheetWidth = sheetView.bounds.width
-        onDragProgressChanged?(1, true)
 
         UIView.animate(
             withDuration: SheetConstants.hideAnimationDuration,

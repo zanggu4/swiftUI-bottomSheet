@@ -38,7 +38,7 @@ final class BottomSheetGestureHandler {
     private var isDraggingSheet = false
     private var gestureStartedWithScroll = false
 
-    /// 헤더 팬 제스처의 방향 잠금
+    /// Axis lock for header pan gesture
     private enum DragAxis { case horizontal, vertical }
     private var lockedAxis: DragAxis?
 

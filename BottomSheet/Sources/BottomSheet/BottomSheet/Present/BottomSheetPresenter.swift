@@ -60,6 +60,24 @@ public extension View {
     }
 }
 
+// MARK: - onChange Compatibility
+
+@available(iOS 15.0, *)
+private extension View {
+    @ViewBuilder
+    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
+        if #available(iOS 17.0, *) {
+            onChange(of: value) { _, newValue in
+                action(newValue)
+            }
+        } else {
+            onChange(of: value) { newValue in
+                action(newValue)
+            }
+        }
+    }
+}
+
 // MARK: - Modifier (Bool)
 
 @available(iOS 15.0, *)
@@ -75,12 +93,15 @@ struct BottomSheetPresentModifier<SheetHeader: View, SheetContent: View>: ViewMo
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: isPresented) { newValue in
+            .onChangeCompat(of: isPresented) { newValue in
                 if newValue {
                     presentSheet()
                 } else {
                     dismissSheet()
                 }
+            }
+            .onDisappear {
+                dismissSheet()
             }
     }
 
@@ -123,12 +144,15 @@ struct BottomSheetPresentItemModifier<Item, SheetHeader: View, SheetContent: Vie
 
     func body(content: Content) -> some View {
         content
-            .onChange(of: item != nil) { hasItem in
+            .onChangeCompat(of: item != nil) { hasItem in
                 if hasItem, let unwrapped = item {
                     presentSheet(with: unwrapped)
                 } else {
                     dismissSheet()
                 }
+            }
+            .onDisappear {
+                dismissSheet()
             }
     }
 
@@ -168,7 +192,7 @@ final class BottomSheetPresenter<Header: View, Content: View> {
     private let edgeSwipeBackToDismiss: Bool
     private let onDismiss: () -> Void
 
-    init(header: Header, content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+    init(header: Header, content: Content, maxHeightRatio: CGFloat = SheetConstants.maxHeightRatio, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
         self.header = header
         self.content = content
         self.maxHeightRatio = maxHeightRatio
@@ -178,8 +202,16 @@ final class BottomSheetPresenter<Header: View, Content: View> {
     }
 
     func present() {
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let rootViewController = windowScene.windows.first?.rootViewController
+        let windowScene = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first { $0.activationState == .foregroundActive }
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+
+        guard let windowScene,
+              let rootViewController = windowScene.windows.first(where: { $0.isKeyWindow })?.rootViewController
+                ?? windowScene.windows.first?.rootViewController
         else {
             assertionFailure("BottomSheetPresenter: No window scene or root view controller available")
             return
@@ -198,7 +230,6 @@ final class BottomSheetPresenter<Header: View, Content: View> {
 
     func dismiss() {
         wrapperController?.dismissSheet()
-        wrapperController = nil
     }
 }
 
@@ -220,7 +251,7 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     private var sheetBottomConstraint: NSLayoutConstraint?
     private var keyboardBehavior: KeyboardAvoidingBehavior?
 
-    init(header: Header, content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+    init(header: Header, content: Content, maxHeightRatio: CGFloat = SheetConstants.maxHeightRatio, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
         self.header = header
         self.content = content
         self.maxHeightRatio = maxHeightRatio
@@ -238,7 +269,7 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     }
 
     deinit {
-        keyboardBehavior?.stopObserving()
+        // NotificationCenter automatically removes observers on dealloc (iOS 9+).
     }
 
     override func viewDidLoad() {
