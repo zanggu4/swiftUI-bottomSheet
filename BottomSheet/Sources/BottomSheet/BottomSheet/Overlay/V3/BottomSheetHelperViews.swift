@@ -28,9 +28,9 @@ final class PassThroughView: UIView {
 
     override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
         let hitView = super.hitTest(point, with: event)
-        // Pass through touches outside sheetView
+        // Return self for background taps so gesture recognizers can fire
         if hitView == self {
-            return nil
+            return self
         }
         return hitView
     }

@@ -188,10 +188,6 @@ public struct BottomSheetView<Header: View, Content: View>: View {
             Color.black
                 .opacity(0.4 * (1 - dragProgress))
                 .animation(.easeOut(duration: 0.25), value: dragProgress)
-                .onTapGesture {
-                    dragProgress = 1
-                    dismissTrigger = true
-                }
 
             // Sheet (UIKit)
             SheetViewController(
