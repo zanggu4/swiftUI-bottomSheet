@@ -20,7 +20,19 @@ public extension View {
         edgeSwipeBackToDismiss: Bool = true,
         @ViewBuilder content: @escaping () -> some View,
     ) -> some View {
-        modifier(BottomSheetModifier(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, content: content))
+        overlaySheet(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: { EmptyView() }, content: content)
+    }
+
+    /// Presents a bottom sheet with a custom header when the binding is true.
+    func overlaySheet(
+        isPresented: Binding<Bool>,
+        maxHeightRatio: CGFloat = 0.9,
+        avoidsKeyboard: Bool = true,
+        edgeSwipeBackToDismiss: Bool = true,
+        @ViewBuilder header: @escaping () -> some View,
+        @ViewBuilder content: @escaping () -> some View,
+    ) -> some View {
+        modifier(BottomSheetModifier(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: header, content: content))
     }
 
     /// Presents a bottom sheet when the item is non-nil.
@@ -31,18 +43,31 @@ public extension View {
         edgeSwipeBackToDismiss: Bool = true,
         @ViewBuilder content: @escaping (Item) -> some View
     ) -> some View {
-        modifier(BottomSheetItemModifier(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, content: content))
+        overlaySheet(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: { EmptyView() }, content: content)
+    }
+
+    /// Presents a bottom sheet with a custom header when the item is non-nil.
+    func overlaySheet<Item>(
+        item: Binding<Item?>,
+        maxHeightRatio: CGFloat = 0.9,
+        avoidsKeyboard: Bool = true,
+        edgeSwipeBackToDismiss: Bool = true,
+        @ViewBuilder header: @escaping () -> some View,
+        @ViewBuilder content: @escaping (Item) -> some View
+    ) -> some View {
+        modifier(BottomSheetItemModifier(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: header, content: content))
     }
 }
 
 // MARK: - Modifier (Bool)
 
 @available(iOS 15.0, *)
-struct BottomSheetModifier<SheetContent: View>: ViewModifier {
+struct BottomSheetModifier<SheetHeader: View, SheetContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
     let edgeSwipeBackToDismiss: Bool
+    @ViewBuilder var header: () -> SheetHeader
     @ViewBuilder var content: () -> SheetContent
 
     @State private var showSheet = false
@@ -54,6 +79,7 @@ struct BottomSheetModifier<SheetContent: View>: ViewModifier {
                 .zIndex(1)
             if showSheet {
                 BottomSheetView(
+                    header: header,
                     content: self.content,
                     maxHeightRatio: maxHeightRatio,
                     avoidsKeyboard: avoidsKeyboard,
@@ -81,11 +107,12 @@ struct BottomSheetModifier<SheetContent: View>: ViewModifier {
 // MARK: - Modifier (Item)
 
 @available(iOS 15.0, *)
-struct BottomSheetItemModifier<Item, SheetContent: View>: ViewModifier {
+struct BottomSheetItemModifier<Item, SheetHeader: View, SheetContent: View>: ViewModifier {
     @Binding var item: Item?
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
     let edgeSwipeBackToDismiss: Bool
+    @ViewBuilder var header: () -> SheetHeader
     @ViewBuilder var content: (Item) -> SheetContent
 
     @State private var showSheet = false
@@ -97,6 +124,7 @@ struct BottomSheetItemModifier<Item, SheetContent: View>: ViewModifier {
             content
             if showSheet, let captured = capturedItem {
                 BottomSheetView(
+                    header: header,
                     content: { self.content(captured) },
                     maxHeightRatio: maxHeightRatio,
                     avoidsKeyboard: avoidsKeyboard,
@@ -125,7 +153,8 @@ struct BottomSheetItemModifier<Item, SheetContent: View>: ViewModifier {
 
 /// A bottom sheet overlay that can be dismissed by dragging down or tapping the dimmed background.
 @available(iOS 15.0, *)
-public struct BottomSheetView<Content: View>: View {
+public struct BottomSheetView<Header: View, Content: View>: View {
+    let header: () -> Header
     let content: () -> Content
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
@@ -136,6 +165,7 @@ public struct BottomSheetView<Content: View>: View {
     @State private var dragProgress: CGFloat = 1 // Start hidden
 
     public init(
+        @ViewBuilder header: @escaping () -> Header,
         @ViewBuilder content: @escaping () -> Content,
         maxHeightRatio: CGFloat = 0.9,
         avoidsKeyboard: Bool = true,
@@ -143,6 +173,7 @@ public struct BottomSheetView<Content: View>: View {
         dismissTrigger: Binding<Bool>,
         onDismiss: @escaping () -> Void
     ) {
+        self.header = header
         self.content = content
         self.maxHeightRatio = maxHeightRatio
         self.avoidsKeyboard = avoidsKeyboard
@@ -164,6 +195,7 @@ public struct BottomSheetView<Content: View>: View {
 
             // Sheet (UIKit)
             SheetViewController(
+                header: header,
                 content: content,
                 maxHeightRatio: maxHeightRatio,
                 avoidsKeyboard: avoidsKeyboard,
@@ -191,7 +223,8 @@ public struct BottomSheetView<Content: View>: View {
 // MARK: - SheetViewController (UIViewControllerRepresentable)
 
 @available(iOS 15.0, *)
-struct SheetViewController<Content: View>: UIViewControllerRepresentable {
+struct SheetViewController<Header: View, Content: View>: UIViewControllerRepresentable {
+    let header: () -> Header
     let content: () -> Content
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
@@ -204,13 +237,13 @@ struct SheetViewController<Content: View>: UIViewControllerRepresentable {
         Coordinator()
     }
 
-    func makeUIViewController(context _: Context) -> BottomSheetController<Content> {
-        let vc = BottomSheetController(content: content(), maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
+    func makeUIViewController(context _: Context) -> BottomSheetController<Header, Content> {
+        let vc = BottomSheetController(header: header(), content: content(), maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
         vc.onDragProgressChanged = onDragProgressChanged
         return vc
     }
 
-    func updateUIViewController(_ uiViewController: BottomSheetController<Content>, context: Context) {
+    func updateUIViewController(_ uiViewController: BottomSheetController<Header, Content>, context: Context) {
         if dismissTrigger, !context.coordinator.isDismissing {
             context.coordinator.isDismissing = true
             // Dispatch to avoid "Modifying state during view update" warning

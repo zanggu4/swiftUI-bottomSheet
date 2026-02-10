@@ -21,7 +21,19 @@ public extension View {
         edgeSwipeBackToDismiss: Bool = true,
         @ViewBuilder content: @escaping () -> some View,
     ) -> some View {
-        modifier(BottomSheetPresentModifier(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, content: content))
+        presentBottomSheet(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: { EmptyView() }, content: content)
+    }
+
+    /// Presents a bottom sheet with a custom header using UIViewController presentation.
+    func presentBottomSheet(
+        isPresented: Binding<Bool>,
+        maxHeightRatio: CGFloat = 0.9,
+        avoidsKeyboard: Bool = true,
+        edgeSwipeBackToDismiss: Bool = true,
+        @ViewBuilder header: @escaping () -> some View,
+        @ViewBuilder content: @escaping () -> some View,
+    ) -> some View {
+        modifier(BottomSheetPresentModifier(isPresented: isPresented, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: header, content: content))
     }
 
     /// Presents a bottom sheet using UIViewController presentation when item is non-nil.
@@ -32,21 +44,34 @@ public extension View {
         edgeSwipeBackToDismiss: Bool = true,
         @ViewBuilder content: @escaping (Item) -> some View
     ) -> some View {
-        modifier(BottomSheetPresentItemModifier(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, content: content))
+        presentBottomSheet(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: { EmptyView() }, content: content)
+    }
+
+    /// Presents a bottom sheet with a custom header using UIViewController presentation when item is non-nil.
+    func presentBottomSheet<Item>(
+        item: Binding<Item?>,
+        maxHeightRatio: CGFloat = 0.9,
+        avoidsKeyboard: Bool = true,
+        edgeSwipeBackToDismiss: Bool = true,
+        @ViewBuilder header: @escaping () -> some View,
+        @ViewBuilder content: @escaping (Item) -> some View
+    ) -> some View {
+        modifier(BottomSheetPresentItemModifier(item: item, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, header: header, content: content))
     }
 }
 
 // MARK: - Modifier (Bool)
 
 @available(iOS 15.0, *)
-struct BottomSheetPresentModifier<SheetContent: View>: ViewModifier {
+struct BottomSheetPresentModifier<SheetHeader: View, SheetContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
     let edgeSwipeBackToDismiss: Bool
+    @ViewBuilder var header: () -> SheetHeader
     @ViewBuilder var content: () -> SheetContent
 
-    @State private var presenter: BottomSheetPresenter<SheetContent>?
+    @State private var presenter: BottomSheetPresenter<SheetHeader, SheetContent>?
 
     func body(content: Content) -> some View {
         content
@@ -63,6 +88,7 @@ struct BottomSheetPresentModifier<SheetContent: View>: ViewModifier {
         guard presenter == nil else { return }
 
         let newPresenter = BottomSheetPresenter(
+            header: header(),
             content: content(),
             maxHeightRatio: maxHeightRatio,
             avoidsKeyboard: avoidsKeyboard,
@@ -85,14 +111,15 @@ struct BottomSheetPresentModifier<SheetContent: View>: ViewModifier {
 
 @available(iOS 15.0, *)
 @MainActor
-struct BottomSheetPresentItemModifier<Item, SheetContent: View>: ViewModifier {
+struct BottomSheetPresentItemModifier<Item, SheetHeader: View, SheetContent: View>: ViewModifier {
     @Binding var item: Item?
     let maxHeightRatio: CGFloat
     let avoidsKeyboard: Bool
     let edgeSwipeBackToDismiss: Bool
+    @ViewBuilder var header: () -> SheetHeader
     @ViewBuilder var content: (Item) -> SheetContent
 
-    @State private var presenter: BottomSheetPresenter<SheetContent>?
+    @State private var presenter: BottomSheetPresenter<SheetHeader, SheetContent>?
 
     func body(content: Content) -> some View {
         content
@@ -109,6 +136,7 @@ struct BottomSheetPresentItemModifier<Item, SheetContent: View>: ViewModifier {
         guard presenter == nil else { return }
 
         let newPresenter = BottomSheetPresenter(
+            header: header(),
             content: content(unwrapped),
             maxHeightRatio: maxHeightRatio,
             avoidsKeyboard: avoidsKeyboard,
@@ -131,15 +159,17 @@ struct BottomSheetPresentItemModifier<Item, SheetContent: View>: ViewModifier {
 
 @available(iOS 15.0, *)
 @MainActor
-final class BottomSheetPresenter<Content: View> {
-    private var wrapperController: SheetWrapperController<Content>?
+final class BottomSheetPresenter<Header: View, Content: View> {
+    private var wrapperController: SheetWrapperController<Header, Content>?
+    private let header: Header
     private let content: Content
     private let maxHeightRatio: CGFloat
     private let avoidsKeyboard: Bool
     private let edgeSwipeBackToDismiss: Bool
     private let onDismiss: () -> Void
 
-    init(content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+    init(header: Header, content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+        self.header = header
         self.content = content
         self.maxHeightRatio = maxHeightRatio
         self.avoidsKeyboard = avoidsKeyboard
@@ -160,7 +190,7 @@ final class BottomSheetPresenter<Content: View> {
             topController = presented
         }
 
-        let wrapper = SheetWrapperController(content: content, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
+        let wrapper = SheetWrapperController(header: header, content: content, maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
         wrapperController = wrapper
 
         topController.present(wrapper, animated: false)
@@ -176,7 +206,8 @@ final class BottomSheetPresenter<Content: View> {
 
 @available(iOS 15.0, *)
 @MainActor
-final class SheetWrapperController<Content: View>: UIViewController {
+final class SheetWrapperController<Header: View, Content: View>: UIViewController {
+    private let header: Header
     private let content: Content
     private let maxHeightRatio: CGFloat
     private let avoidsKeyboard: Bool
@@ -185,11 +216,12 @@ final class SheetWrapperController<Content: View>: UIViewController {
     private var isDismissing = false
 
     private let dimView = UIView()
-    private var sheetController: BottomSheetController<Content>?
+    private var sheetController: BottomSheetController<Header, Content>?
     private var sheetBottomConstraint: NSLayoutConstraint?
     private var keyboardBehavior: KeyboardAvoidingBehavior?
 
-    init(content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+    init(header: Header, content: Content, maxHeightRatio: CGFloat = 0.9, avoidsKeyboard: Bool = true, edgeSwipeBackToDismiss: Bool = true, onDismiss: @escaping () -> Void) {
+        self.header = header
         self.content = content
         self.maxHeightRatio = maxHeightRatio
         self.avoidsKeyboard = avoidsKeyboard
@@ -245,7 +277,7 @@ final class SheetWrapperController<Content: View>: UIViewController {
 
     private func setupSheetController() {
         // avoidsKeyboard: false because SheetWrapperController handles keyboard
-        let sheet = BottomSheetController(content: content, maxHeightRatio: maxHeightRatio, avoidsKeyboard: false, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss) { [weak self] in
+        let sheet = BottomSheetController(header: header, content: content, maxHeightRatio: maxHeightRatio, avoidsKeyboard: false, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss) { [weak self] in
             self?.finishDismiss()
         }
         // Dim animation is controlled by BottomSheetController via this callback
