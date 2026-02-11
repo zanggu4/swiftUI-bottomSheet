@@ -150,6 +150,7 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         }
         addChild(contentHosting)
         scrollView.addSubview(contentHosting.view)
+        contentHosting.view.autoresizingMask = []  // Prevent scrollView bounds changes from resizing content
         contentHosting.didMove(toParent: self)
         contentHostingController = contentHosting
 
@@ -202,20 +203,29 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         let width = view.bounds.width
         let viewHeight = view.bounds.height
 
-        // Sheet
+        // Sheet — bounds+center (safe when transform != .identity during drag)
         let sheetY = isSheetVisible
             ? viewHeight - currentSheetHeight - keyboardOffset
             : viewHeight
-        sheetView.frame = CGRect(x: 0, y: sheetY, width: width, height: currentSheetHeight)
+        let newBounds = CGRect(x: 0, y: 0, width: width, height: currentSheetHeight)
+        let newCenter = CGPoint(x: width / 2, y: sheetY + currentSheetHeight / 2)
+        if sheetView.bounds != newBounds { sheetView.bounds = newBounds }
+        if sheetView.center != newCenter { sheetView.center = newCenter }
 
         // Header
-        headerContainerView.frame = CGRect(x: 0, y: 0, width: width, height: currentHeaderHeight)
-        headerHostingController?.view.frame = headerContainerView.bounds
+        let headerFrame = CGRect(x: 0, y: 0, width: width, height: currentHeaderHeight)
+        if headerContainerView.frame != headerFrame {
+            headerContainerView.frame = headerFrame
+            headerHostingController?.view.frame = headerContainerView.bounds
+        }
 
-        // ScrollView
+        // ScrollView — skip if unchanged → breaks layout cycle, preserves bounce
         let scrollY = currentHeaderHeight
         let scrollHeight = currentSheetHeight - currentHeaderHeight
-        scrollView.frame = CGRect(x: 0, y: scrollY, width: width, height: max(0, scrollHeight))
+        let scrollFrame = CGRect(x: 0, y: scrollY, width: width, height: max(0, scrollHeight))
+        if scrollView.frame != scrollFrame {
+            scrollView.frame = scrollFrame
+        }
 
         // Content origin correction (UIHostingController internal layout defense)
         if let contentView = contentHostingController?.view,
