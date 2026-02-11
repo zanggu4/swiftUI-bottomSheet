@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var showHeaderSheet = false
     @State private var showLongContentSheet = false
     @State private var showKeyboardSheet = false
+    @State private var showDynamicHeightSheet = false
     @State private var showPresentSheet = false
     @State private var selectedItem: DemoItem?
 
@@ -38,6 +39,10 @@ struct ContentView: View {
 
                 Button("Long Scrollable Content") {
                     showLongContentSheet = true
+                }
+
+                Button("Dynamic Height Change") {
+                    showDynamicHeightSheet = true
                 }
 
                 Button("With Keyboard Avoidance") {
@@ -80,6 +85,9 @@ struct ContentView: View {
                 .background(Color.blue)
             }
         )
+        .overlaySheet(isPresented: $showDynamicHeightSheet) {
+            DynamicHeightSheetContent()
+        }
         .overlaySheet(isPresented: $showLongContentSheet) {
             LongSheetContent()
         }
@@ -206,6 +214,104 @@ struct HeaderSheetContent: View {
             }
         }
         .padding(.bottom, 20)
+    }
+}
+
+struct DynamicHeightSheetContent: View {
+    @State private var items: [String] = ["Item 1"]
+    @State private var isExpanded = false
+
+    var body: some View {
+        VStack(spacing: 16) {
+            GrabHandle()
+
+            Text("Dynamic Height")
+                .font(.title3.bold())
+
+            Text("버튼을 눌러 콘텐츠를 추가/제거하면\n시트 높이가 자동으로 변합니다.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            // 토글로 펼치기/접기
+            Button {
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    isExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                    Text(isExpanded ? "설명 접기" : "설명 펼치기")
+                }
+                .font(.subheadline.bold())
+                .foregroundColor(.purple)
+            }
+
+            if isExpanded {
+                Text("이 영역은 펼치기/접기로 동적으로 나타나고 사라집니다. 시트 높이가 콘텐츠에 맞춰 자연스럽게 변하는지 확인해보세요.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.purple.opacity(0.08))
+                    .cornerRadius(8)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            // 아이템 리스트
+            ForEach(items, id: \.self) { item in
+                HStack {
+                    Image(systemName: "circle.fill")
+                        .font(.system(size: 8))
+                        .foregroundColor(.blue)
+                    Text(item)
+                        .font(.body)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
+                .background(Color.blue.opacity(0.05))
+                .cornerRadius(8)
+            }
+
+            // 추가/제거 버튼
+            HStack(spacing: 12) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        items.append("Item \(items.count + 1)")
+                    }
+                } label: {
+                    Label("추가", systemImage: "plus.circle.fill")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(Color.blue)
+                        .cornerRadius(10)
+                }
+
+                Button {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if items.count > 1 {
+                            items.removeLast()
+                        }
+                    }
+                } label: {
+                    Label("제거", systemImage: "minus.circle.fill")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.white)
+                        .padding(.vertical, 10)
+                        .frame(maxWidth: .infinity)
+                        .background(items.count > 1 ? Color.red : Color.gray)
+                        .cornerRadius(10)
+                }
+                .disabled(items.count <= 1)
+            }
+            .padding(.horizontal, 16)
+
+            Spacer().frame(height: 16)
+        }
+        .padding(.horizontal, 16)
     }
 }
 
