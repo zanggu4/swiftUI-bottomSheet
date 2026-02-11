@@ -70,7 +70,22 @@ struct ContentView: View {
             }
         }
         .overlaySheet(isPresented: $showBasicSheet) {
-            BasicSheetContent()
+            VStack {
+                Text("Content")
+                    .background(Color.blue)
+                Text("Content")
+                    .background(Color.green)
+                Text("Content")
+                    .background(Color.red)
+                Text("Content")
+                    .background(Color.yellow)
+                Text("Content")
+                    .background(Color.purple)
+                Text("Content")
+                    .background(Color.gray)
+            }
+
+//            BasicSheetContent()
         }
         .overlaySheet(
             isPresented: $showHeaderSheet,
