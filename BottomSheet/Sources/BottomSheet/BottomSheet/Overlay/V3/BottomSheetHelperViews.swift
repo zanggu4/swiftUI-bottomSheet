@@ -9,6 +9,14 @@
 import SwiftUI
 import UIKit
 
+// MARK: - BottomSheetDismissable
+
+@available(iOS 15.0, *)
+@MainActor
+protocol BottomSheetDismissable: AnyObject {
+    func dismissSheet()
+}
+
 // MARK: - PassThroughView
 
 /// A view that passes through touches outside its designated sheet area.

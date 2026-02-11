@@ -253,20 +253,26 @@ struct SheetViewController<Header: View, Content: View>: UIViewControllerReprese
         Coordinator()
     }
 
-    func makeUIViewController(context _: Context) -> BottomSheetController<Header, Content> {
-        let vc = BottomSheetController(header: header(), content: content(), maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
-        vc.onDragProgressChanged = onDragProgressChanged
-        return vc
+    func makeUIViewController(context _: Context) -> UIViewController {
+        if #available(iOS 16.0, *) {
+            let vc = BottomSheetALController(header: header(), content: content(), maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
+            vc.onDragProgressChanged = onDragProgressChanged
+            return vc
+        } else {
+            let vc = BottomSheetController(header: header(), content: content(), maxHeightRatio: maxHeightRatio, avoidsKeyboard: avoidsKeyboard, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss, onDismiss: onDismiss)
+            vc.onDragProgressChanged = onDragProgressChanged
+            return vc
+        }
     }
 
-    func updateUIViewController(_ uiViewController: BottomSheetController<Header, Content>, context: Context) {
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {
         if dismissTrigger, !context.coordinator.isDismissing {
             context.coordinator.isDismissing = true
             // Dispatch to avoid "Modifying state during view update" warning
             DispatchQueue.main.async {
                 dismissTrigger = false
             }
-            uiViewController.dismissSheet()
+            (uiViewController as? BottomSheetDismissable)?.dismissSheet()
         }
     }
 
