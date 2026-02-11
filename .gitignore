@@ -184,4 +184,5 @@ Modules/**/Package.resolved
 
 # 클로드 코드 캐시
 .claude/*
+.omc/
 # End of https://www.gitignore.io/api/xcode,macos,swift,cocoapods,objective-c
