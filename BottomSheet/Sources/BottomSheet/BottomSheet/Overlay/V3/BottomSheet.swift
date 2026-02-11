@@ -8,24 +8,6 @@
 
 import SwiftUI
 
-// MARK: - onChange Compatibility
-
-@available(iOS 15.0, *)
-private extension View {
-    @ViewBuilder
-    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        if #available(iOS 17.0, *) {
-            onChange(of: value) { _, newValue in
-                action(newValue)
-            }
-        } else {
-            onChange(of: value) { newValue in
-                action(newValue)
-            }
-        }
-    }
-}
-
 // MARK: - View Modifier
 
 @available(iOS 15.0, *)
@@ -206,7 +188,7 @@ struct BottomSheetView<Header: View, Content: View>: View {
         ZStack {
             // Dim overlay (SwiftUI)
             Color.black
-                .opacity(0.4 * (1 - dragProgress))
+                .opacity(SheetConstants.dimOpacity * (1 - dragProgress))
                 .animation(.easeOut(duration: 0.25), value: dragProgress)
 
             // Sheet (UIKit)

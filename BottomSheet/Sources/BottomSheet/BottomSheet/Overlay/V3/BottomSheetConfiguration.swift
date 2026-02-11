@@ -13,6 +13,7 @@ import UIKit
 enum SheetConstants {
     static let cornerRadius: CGFloat = 16
     static let maxHeightRatio: CGFloat = 0.9
+    static let dimOpacity: CGFloat = 0.4
     static let showAnimationDuration: TimeInterval = 0.35
     static let hideAnimationDuration: TimeInterval = 0.25
     static let snapBackAnimationDuration: TimeInterval = 0.3

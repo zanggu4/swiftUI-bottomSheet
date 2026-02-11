@@ -60,24 +60,6 @@ public extension View {
     }
 }
 
-// MARK: - onChange Compatibility
-
-@available(iOS 15.0, *)
-private extension View {
-    @ViewBuilder
-    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
-        if #available(iOS 17.0, *) {
-            onChange(of: value) { _, newValue in
-                action(newValue)
-            }
-        } else {
-            onChange(of: value) { newValue in
-                action(newValue)
-            }
-        }
-    }
-}
-
 // MARK: - Modifier (Bool)
 
 @available(iOS 15.0, *)
@@ -233,7 +215,7 @@ final class BottomSheetPresenter<Header: View, Content: View> {
     }
 }
 
-// MARK: - SheetWrapperController (uses existing BottomSheetController)
+// MARK: - SheetWrapperController
 
 @available(iOS 15.0, *)
 @MainActor
@@ -247,7 +229,7 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     private var isDismissing = false
 
     private let dimView = UIView()
-    private var sheetController: BottomSheetController<Header, Content>?
+    private var sheetController: (UIViewController & BottomSheetDismissable)?
     private var sheetBottomConstraint: NSLayoutConstraint?
     private var keyboardBehavior: KeyboardAvoidingBehavior?
 
@@ -266,10 +248,6 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-
-    deinit {
-        // NotificationCenter automatically removes observers on dealloc (iOS 9+).
     }
 
     override func viewDidLoad() {
@@ -295,7 +273,7 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     private func setupDimView() {
         view.backgroundColor = .clear
 
-        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.4)
+        dimView.backgroundColor = UIColor.black.withAlphaComponent(SheetConstants.dimOpacity)
         dimView.alpha = 0
         dimView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(dimView)
@@ -312,12 +290,10 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     }
 
     private func setupSheetController() {
+        let sheet: UIViewController & BottomSheetDismissable
+
         // avoidsKeyboard: false because SheetWrapperController handles keyboard
-        let sheet = BottomSheetController(header: header, content: content, maxHeightRatio: maxHeightRatio, avoidsKeyboard: false, edgeSwipeBackToDismiss: edgeSwipeBackToDismiss) { [weak self] in
-            self?.finishDismiss()
-        }
-        // Dim animation is controlled by BottomSheetController via this callback
-        sheet.onDragProgressChanged = { [weak self] progress, animated in
+        let dragHandler: (CGFloat, Bool) -> Void = { [weak self] progress, animated in
             if animated {
                 UIView.animate(withDuration: 0.25) {
                     self?.dimView.alpha = 1 - progress
@@ -325,6 +301,28 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
             } else {
                 self?.dimView.alpha = 1 - progress
             }
+        }
+
+        if #available(iOS 16.0, *) {
+            let vc = BottomSheetALController(
+                header: header, content: content,
+                maxHeightRatio: maxHeightRatio, avoidsKeyboard: false,
+                edgeSwipeBackToDismiss: edgeSwipeBackToDismiss
+            ) { [weak self] in
+                self?.finishDismiss()
+            }
+            vc.onDragProgressChanged = dragHandler
+            sheet = vc
+        } else {
+            let vc = BottomSheetController(
+                header: header, content: content,
+                maxHeightRatio: maxHeightRatio, avoidsKeyboard: false,
+                edgeSwipeBackToDismiss: edgeSwipeBackToDismiss
+            ) { [weak self] in
+                self?.finishDismiss()
+            }
+            vc.onDragProgressChanged = dragHandler
+            sheet = vc
         }
 
         addChild(sheet)

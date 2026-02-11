@@ -32,23 +32,35 @@ final class PassThroughView: UIView {
     }
 }
 
-// MARK: - ControlledHostingController
+// MARK: - SheetHostingController
 
 @available(iOS 15.0, *)
-final class ControlledHostingController<Content: View>: UIHostingController<Content> {
+final class SheetHostingController<Content: View>: UIHostingController<Content> {
     var onLayoutChange: (() -> Void)?
     var adjustsSafeAreaTop = false
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        onLayoutChange?()
-        guard adjustsSafeAreaTop else { return }
-        // view.safeAreaInsets.top includes additionalSafeAreaInsets.top,
-        // so compute the system safe area by subtracting it out.
-        let systemTop = view.safeAreaInsets.top - additionalSafeAreaInsets.top
-        if abs(additionalSafeAreaInsets.top - (-systemTop)) > 0.5 {
-            additionalSafeAreaInsets.top = -systemTop
+        if adjustsSafeAreaTop {
+            let systemTop = view.safeAreaInsets.top - additionalSafeAreaInsets.top
+            if abs(additionalSafeAreaInsets.top - (-systemTop)) > 0.5 {
+                additionalSafeAreaInsets.top = -systemTop
+            }
         }
+        onLayoutChange?()
     }
 }
 
+// MARK: - onChange Compatibility
+
+@available(iOS 15.0, *)
+extension View {
+    @ViewBuilder
+    func onChangeCompat<V: Equatable>(of value: V, perform action: @escaping (V) -> Void) -> some View {
+        if #available(iOS 17.0, *) {
+            onChange(of: value) { _, newValue in action(newValue) }
+        } else {
+            onChange(of: value) { newValue in action(newValue) }
+        }
+    }
+}
