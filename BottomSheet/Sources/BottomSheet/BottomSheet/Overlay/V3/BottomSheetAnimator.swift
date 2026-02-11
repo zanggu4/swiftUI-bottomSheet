@@ -27,12 +27,7 @@ final class BottomSheetAnimator {
 
     // MARK: - Animations
 
-    func animateSpringLayout(completion: (() -> Void)? = nil) {
-        guard let containerView else {
-            completion?()
-            return
-        }
-
+    func animateSpringLayout(layout: (() -> Void)? = nil, completion: (() -> Void)? = nil) {
         UIView.animate(
             withDuration: SheetConstants.showAnimationDuration,
             delay: 0,
@@ -40,24 +35,19 @@ final class BottomSheetAnimator {
             initialSpringVelocity: 0,
             options: [.curveEaseOut],
         ) {
-            containerView.layoutIfNeeded()
+            layout?()
         } completion: { _ in
             completion?()
         }
     }
 
-    func animateEaseOutLayout(completion: (() -> Void)? = nil) {
-        guard let containerView else {
-            completion?()
-            return
-        }
-
+    func animateEaseOutLayout(layout: (() -> Void)? = nil, completion: (() -> Void)? = nil) {
         UIView.animate(
             withDuration: SheetConstants.hideAnimationDuration,
             delay: 0,
             options: [.curveEaseOut],
         ) {
-            containerView.layoutIfNeeded()
+            layout?()
         } completion: { _ in
             completion?()
         }

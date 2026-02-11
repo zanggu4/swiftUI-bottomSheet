@@ -31,9 +31,9 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
     private weak var headerHostingController: UIViewController?
     private weak var contentHostingController: UIViewController?
 
-    private var sheetHeightConstraint: NSLayoutConstraint?
-    private var sheetBottomConstraint: NSLayoutConstraint?
-    private var headerHeightConstraint: NSLayoutConstraint?
+    private var currentSheetHeight: CGFloat = SheetConstants.defaultSheetHeight
+    private var currentHeaderHeight: CGFloat = 0
+    private var keyboardOffset: CGFloat = 0
 
     private var needsScroll = false
     private var isDismissing = false
@@ -95,6 +95,7 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
+        layoutFrames()
         updateSheetHeight()
     }
 
@@ -119,12 +120,10 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         sheetView.layer.cornerRadius = SheetConstants.cornerRadius
         sheetView.layer.maskedCorners = [.layerMinXMinYCorner, .layerMaxXMinYCorner]
         sheetView.clipsToBounds = true
-        sheetView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(sheetView)
 
         // Header container
         headerContainerView.backgroundColor = .clear
-        headerContainerView.translatesAutoresizingMaskIntoConstraints = false
         sheetView.addSubview(headerContainerView)
 
         // Header hosting controller
@@ -139,7 +138,6 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         scrollView.delegate = self
         scrollView.showsVerticalScrollIndicator = true
         scrollView.alwaysBounceVertical = true
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
         sheetView.addSubview(scrollView)
 
         // Content hosting controller (frame-based layout to avoid iOS 15 systemLayoutSizeFitting oscillation)
@@ -154,33 +152,6 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         scrollView.addSubview(contentHosting.view)
         contentHosting.didMove(toParent: self)
         contentHostingController = contentHosting
-
-        // Header height constraint (will be updated)
-        headerHeightConstraint = headerContainerView.heightAnchor.constraint(equalToConstant: 0)
-        headerHeightConstraint?.isActive = true
-
-        // Constraints
-        NSLayoutConstraint.activate([
-            sheetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            sheetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-
-            headerContainerView.topAnchor.constraint(equalTo: sheetView.topAnchor),
-            headerContainerView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
-            headerContainerView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
-
-            scrollView.topAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
-        ])
-
-        // Sheet height constraint (will be updated)
-        sheetHeightConstraint = sheetView.heightAnchor.constraint(equalToConstant: SheetConstants.defaultSheetHeight)
-        sheetHeightConstraint?.isActive = true
-
-        // Sheet bottom constraint (starts off-screen)
-        sheetBottomConstraint = sheetView.topAnchor.constraint(equalTo: view.bottomAnchor)
-        sheetBottomConstraint?.isActive = true
 
         // Header drag gesture
         let headerPan = UIPanGestureRecognizer(target: self, action: #selector(handleHeaderPanGesture(_:)))
@@ -201,7 +172,7 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
             sheetView: sheetView,
             scrollView: scrollView,
             edgeSwipeBackToDismiss: edgeSwipeBackToDismiss,
-            sheetHeight: sheetHeightConstraint?.constant ?? SheetConstants.defaultSheetHeight,
+            sheetHeight: currentSheetHeight,
         )
         gestureHandler?.delegate = self
 
@@ -209,9 +180,14 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
     }
 
     private func setupKeyboardBehavior() {
-        guard let constraint = sheetBottomConstraint else { return }
         keyboardBehavior = KeyboardAvoidingBehavior()
-        keyboardBehavior?.startObserving(bottomConstraint: constraint, view: view)
+        keyboardBehavior?.onKeyboardChange = { [weak self] height, duration, options in
+            self?.keyboardOffset = height
+            UIView.animate(withDuration: duration, delay: 0, options: options) {
+                self?.layoutFrames()
+            }
+        }
+        keyboardBehavior?.startObserving(in: view)
     }
 
     private func setupEdgeSwipeGesture() {
@@ -220,27 +196,44 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         view.addGestureRecognizer(edgePan)
     }
 
-    // MARK: - Constraint Ownership
+    // MARK: - Frame Layout
 
-    private func replaceBottomConstraint(with newConstraint: NSLayoutConstraint) {
-        sheetBottomConstraint?.isActive = false
-        newConstraint.isActive = true
-        sheetBottomConstraint = newConstraint
-        // Restore keyboard offset if keyboard is visible
-        if let keyboardHeight = keyboardBehavior?.currentKeyboardHeight, keyboardHeight > 0 {
-            newConstraint.constant = -keyboardHeight
+    private func layoutFrames() {
+        let width = view.bounds.width
+        let viewHeight = view.bounds.height
+
+        // Sheet
+        let sheetY = isSheetVisible
+            ? viewHeight - currentSheetHeight - keyboardOffset
+            : viewHeight
+        sheetView.frame = CGRect(x: 0, y: sheetY, width: width, height: currentSheetHeight)
+
+        // Header
+        headerContainerView.frame = CGRect(x: 0, y: 0, width: width, height: currentHeaderHeight)
+        headerHostingController?.view.frame = headerContainerView.bounds
+
+        // ScrollView
+        let scrollY = currentHeaderHeight
+        let scrollHeight = currentSheetHeight - currentHeaderHeight
+        scrollView.frame = CGRect(x: 0, y: scrollY, width: width, height: max(0, scrollHeight))
+
+        // Content origin correction (UIHostingController internal layout defense)
+        if let contentView = contentHostingController?.view,
+           contentView.frame.origin != .zero {
+            contentView.frame.origin = .zero
         }
-        keyboardBehavior?.updateConstraint(newConstraint)
     }
 
     // MARK: - Show / Dismiss Orchestration
 
     private func showSheet() {
-        view.layoutIfNeeded()
-        replaceBottomConstraint(with: sheetView.bottomAnchor.constraint(equalTo: view.bottomAnchor))
+        layoutFrames()  // off-screen (isSheetVisible = false)
+        isSheetVisible = true
         reportDragProgress(0, animated: false)
-        animator?.animateSpringLayout { [weak self] in
-            self?.isSheetVisible = true
+        animator?.animateSpringLayout(layout: { [weak self] in
+            self?.layoutFrames()  // on-screen
+        }) {
+            // show complete
         }
     }
 
@@ -248,18 +241,17 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         guard !isDismissing else { return }
         isDismissing = true
         isSheetVisible = false
-
-        replaceBottomConstraint(with: sheetView.topAnchor.constraint(equalTo: view.bottomAnchor))
         reportDragProgress(1, animated: true)
 
         guard animator != nil else {
-            // Animator nil path defense: dismiss immediately
             onDismiss?()
             onDismiss = nil
             return
         }
 
-        animator?.animateEaseOutLayout { [weak self] in
+        animator?.animateEaseOutLayout(layout: { [weak self] in
+            self?.layoutFrames()  // off-screen
+        }) { [weak self] in
             self?.onDismiss?()
             self?.onDismiss = nil
         }
@@ -273,25 +265,18 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
 
     private func updateSheetHeight() {
         guard let contentHosting = contentHostingController else { return }
-        guard !scrollView.isDragging, !scrollView.isDecelerating else { return }
+        guard !scrollView.isDragging, !scrollView.isDecelerating, !scrollView.isTracking else { return }
 
         let width = view.bounds.width
         guard width > 0 else { return }
 
-        let targetSize = CGSize(
-            width: width,
-            height: UIView.layoutFittingCompressedSize.height,
-        )
-
-        // Header: frame-based sizing for consistency with content
-        var headerHeight: CGFloat = 0
+        // Header
         if let headerHosting = headerHostingController {
-            let headerSize = headerHosting.view.sizeThatFits(targetSize)
-            headerHeight = headerSize.height
-            headerHosting.view.frame = CGRect(x: 0, y: 0, width: width, height: headerHeight)
+            let headerSize = headerHosting.view.sizeThatFits(CGSize(width: width, height: UIView.layoutFittingCompressedSize.height))
+            currentHeaderHeight = headerSize.height
         }
 
-        // Content: frame-based sizing (avoids iOS 15 systemLayoutSizeFitting oscillation in UIScrollView)
+        // Content
         let contentHeight = contentHosting.view.sizeThatFits(
             CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
         ).height
@@ -300,24 +285,20 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
 
         let safeAreaBottom = view.safeAreaInsets.bottom
         let maxHeight = view.bounds.height * maxHeightRatio
-        let calculatedHeight = headerHeight + contentHeight + safeAreaBottom
+        let calculatedHeight = currentHeaderHeight + contentHeight + safeAreaBottom
         let finalHeight = min(calculatedHeight, maxHeight)
 
-        if headerHeightConstraint?.constant != headerHeight {
-            headerHeightConstraint?.constant = headerHeight
-        }
-
-        let heightChanged = sheetHeightConstraint?.constant != finalHeight
+        let heightChanged = currentSheetHeight != finalHeight
         if heightChanged {
-            sheetHeightConstraint?.constant = finalHeight
+            currentSheetHeight = finalHeight
             gestureHandler?.updateSheetHeight(finalHeight)
         }
 
         let previousNeedsScroll = needsScroll
         needsScroll = calculatedHeight > maxHeight
 
-        let shouldAnimateHeight = heightChanged && isSheetVisible && gestureHandler?.isSheetBeingDragged != true
-        if shouldAnimateHeight {
+        let shouldAnimate = heightChanged && isSheetVisible && gestureHandler?.isSheetBeingDragged != true
+        if shouldAnimate {
             UIView.animate(
                 withDuration: SheetConstants.snapBackAnimationDuration,
                 delay: 0,
@@ -325,8 +306,10 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
                 initialSpringVelocity: 0,
                 options: [.allowUserInteraction]
             ) {
-                self.view.layoutIfNeeded()
+                self.layoutFrames()
             }
+        } else {
+            layoutFrames()
         }
 
         if previousNeedsScroll, !needsScroll, scrollView.contentOffset.y > 0 {

@@ -10,18 +10,15 @@ import UIKit
 
 // MARK: - KeyboardAvoidingBehavior
 
-/// Shared keyboard handling behavior that adjusts a constraint when keyboard appears/disappears.
+/// Shared keyboard handling behavior that notifies via callback when keyboard appears/disappears.
 @available(iOS 15.0, *)
 @MainActor
 final class KeyboardAvoidingBehavior {
     // MARK: - Properties
 
-    private weak var view: UIView?
-    private weak var bottomConstraint: NSLayoutConstraint?
-
-    /// The current keyboard-induced offset (0 when keyboard is hidden).
-    /// Controller uses this to restore keyboard offset after constraint replacement.
+    var onKeyboardChange: ((CGFloat, TimeInterval, UIView.AnimationOptions) -> Void)?
     private(set) var currentKeyboardHeight: CGFloat = 0
+    private weak var view: UIView?
 
     // MARK: - Init
 
@@ -29,9 +26,8 @@ final class KeyboardAvoidingBehavior {
 
     // MARK: - Public Methods
 
-    /// Starts observing keyboard notifications and adjusts the given constraint.
-    func startObserving(bottomConstraint: NSLayoutConstraint, view: UIView) {
-        self.bottomConstraint = bottomConstraint
+    /// Starts observing keyboard notifications.
+    func startObserving(in view: UIView) {
         self.view = view
 
         NotificationCenter.default.addObserver(
@@ -46,11 +42,6 @@ final class KeyboardAvoidingBehavior {
             name: UIResponder.keyboardWillHideNotification,
             object: nil,
         )
-    }
-
-    /// Updates the bottom constraint reference (e.g. after animation replaces constraint).
-    func updateConstraint(_ constraint: NSLayoutConstraint) {
-        bottomConstraint = constraint
     }
 
     /// Stops observing keyboard notifications.
@@ -69,11 +60,7 @@ final class KeyboardAvoidingBehavior {
         currentKeyboardHeight = adjustedHeight
 
         let curve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 7
-        bottomConstraint?.constant = -adjustedHeight
-
-        UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) { [weak self] in
-            self?.view?.layoutIfNeeded()
-        }
+        onKeyboardChange?(adjustedHeight, duration, UIView.AnimationOptions(rawValue: curve << 16))
     }
 
     @objc private func keyboardWillHide(_ notification: Notification) {
@@ -82,10 +69,6 @@ final class KeyboardAvoidingBehavior {
         currentKeyboardHeight = 0
 
         let curve = notification.userInfo?[UIResponder.keyboardAnimationCurveUserInfoKey] as? UInt ?? 7
-        bottomConstraint?.constant = 0
-
-        UIView.animate(withDuration: duration, delay: 0, options: UIView.AnimationOptions(rawValue: curve << 16)) { [weak self] in
-            self?.view?.layoutIfNeeded()
-        }
+        onKeyboardChange?(0, duration, UIView.AnimationOptions(rawValue: curve << 16))
     }
 }

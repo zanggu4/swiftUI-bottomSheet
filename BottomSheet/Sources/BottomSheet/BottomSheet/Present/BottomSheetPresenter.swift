@@ -282,9 +282,14 @@ final class SheetWrapperController<Header: View, Content: View>: UIViewControlle
     }
 
     private func setupKeyboardBehavior() {
-        guard let constraint = sheetBottomConstraint else { return }
         keyboardBehavior = KeyboardAvoidingBehavior()
-        keyboardBehavior?.startObserving(bottomConstraint: constraint, view: view)
+        keyboardBehavior?.onKeyboardChange = { [weak self] height, duration, options in
+            self?.sheetBottomConstraint?.constant = -height
+            UIView.animate(withDuration: duration, delay: 0, options: options) {
+                self?.view.layoutIfNeeded()
+            }
+        }
+        keyboardBehavior?.startObserving(in: view)
     }
 
     private func setupDimView() {
