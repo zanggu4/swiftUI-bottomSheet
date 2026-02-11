@@ -235,9 +235,7 @@ struct DynamicHeightSheetContent: View {
 
             // 토글로 펼치기/접기
             Button {
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    isExpanded.toggle()
-                }
+                isExpanded.toggle()
             } label: {
                 HStack {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -255,7 +253,6 @@ struct DynamicHeightSheetContent: View {
                     .padding(.vertical, 12)
                     .background(Color.purple.opacity(0.08))
                     .cornerRadius(8)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             // 아이템 리스트
@@ -277,9 +274,7 @@ struct DynamicHeightSheetContent: View {
             // 추가/제거 버튼
             HStack(spacing: 12) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        items.append("Item \(items.count + 1)")
-                    }
+                    items.append("Item \(items.count + 1)")
                 } label: {
                     Label("추가", systemImage: "plus.circle.fill")
                         .font(.subheadline.bold())
@@ -291,10 +286,8 @@ struct DynamicHeightSheetContent: View {
                 }
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        if items.count > 1 {
-                            items.removeLast()
-                        }
+                    if items.count > 1 {
+                        items.removeLast()
                     }
                 } label: {
                     Label("제거", systemImage: "minus.circle.fill")
