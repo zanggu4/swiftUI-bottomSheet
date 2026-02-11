@@ -356,8 +356,8 @@ struct PagingHeightSheetContent: View {
             TabView(selection: $currentPage) {
                 ForEach(0 ..< pageCount, id: \.self) { index in
                     pageContent(for: index)
-                        .frame(maxHeight: .infinity, alignment: .top)
                         .background(MeasurePageHeight(page: index))
+                        .frame(maxHeight: .infinity, alignment: .top)
                         .tag(index)
                 }
             }
