@@ -37,6 +37,7 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
 
     private var needsScroll = false
     private var isDismissing = false
+    private var isSheetVisible = false
 
     private var animator: BottomSheetAnimator?
     private var gestureHandler: BottomSheetGestureHandler?
@@ -146,6 +147,9 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         let contentHosting = ControlledHostingController(rootView: wrappedContent)
         contentHosting.adjustsSafeAreaTop = true
         contentHosting.view.backgroundColor = .clear
+        contentHosting.onLayoutChange = { [weak self] in
+            self?.view.setNeedsLayout()
+        }
         addChild(contentHosting)
         scrollView.addSubview(contentHosting.view)
         contentHosting.didMove(toParent: self)
@@ -235,12 +239,15 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         view.layoutIfNeeded()
         replaceBottomConstraint(with: sheetView.bottomAnchor.constraint(equalTo: view.bottomAnchor))
         reportDragProgress(0, animated: false)
-        animator?.animateSpringLayout()
+        animator?.animateSpringLayout { [weak self] in
+            self?.isSheetVisible = true
+        }
     }
 
     func dismissSheet() {
         guard !isDismissing else { return }
         isDismissing = true
+        isSheetVisible = false
 
         replaceBottomConstraint(with: sheetView.topAnchor.constraint(equalTo: view.bottomAnchor))
         reportDragProgress(1, animated: true)
@@ -299,13 +306,28 @@ final class BottomSheetController<Header: View, Content: View>: UIViewController
         if headerHeightConstraint?.constant != headerHeight {
             headerHeightConstraint?.constant = headerHeight
         }
-        if sheetHeightConstraint?.constant != finalHeight {
+
+        let heightChanged = sheetHeightConstraint?.constant != finalHeight
+        if heightChanged {
             sheetHeightConstraint?.constant = finalHeight
             gestureHandler?.updateSheetHeight(finalHeight)
         }
 
         let previousNeedsScroll = needsScroll
         needsScroll = calculatedHeight > maxHeight
+
+        let shouldAnimateHeight = heightChanged && isSheetVisible && gestureHandler?.isSheetBeingDragged != true
+        if shouldAnimateHeight {
+            UIView.animate(
+                withDuration: SheetConstants.snapBackAnimationDuration,
+                delay: 0,
+                usingSpringWithDamping: SheetConstants.springDamping,
+                initialSpringVelocity: 0,
+                options: [.allowUserInteraction]
+            ) {
+                self.view.layoutIfNeeded()
+            }
+        }
 
         if previousNeedsScroll, !needsScroll, scrollView.contentOffset.y > 0 {
             UIView.animate(withDuration: 0.2) {
