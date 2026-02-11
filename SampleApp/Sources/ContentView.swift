@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var showLongContentSheet = false
     @State private var showKeyboardSheet = false
     @State private var showDynamicHeightSheet = false
+    @State private var showPagingSheet = false
     @State private var showPresentSheet = false
     @State private var selectedItem: DemoItem?
 
@@ -43,6 +44,10 @@ struct ContentView: View {
 
                 Button("Dynamic Height Change") {
                     showDynamicHeightSheet = true
+                }
+
+                Button("Paging Height Change") {
+                    showPagingSheet = true
                 }
 
                 Button("With Keyboard Avoidance") {
@@ -87,6 +92,9 @@ struct ContentView: View {
         )
         .overlaySheet(isPresented: $showDynamicHeightSheet) {
             DynamicHeightSheetContent()
+        }
+        .overlaySheet(isPresented: $showPagingSheet) {
+            PagingHeightSheetContent()
         }
         .overlaySheet(isPresented: $showLongContentSheet) {
             LongSheetContent()
@@ -305,6 +313,135 @@ struct DynamicHeightSheetContent: View {
             Spacer().frame(height: 16)
         }
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Page Height Measurement
+
+private struct PageHeightKey: PreferenceKey {
+    static var defaultValue: [Int: CGFloat] = [:]
+    static func reduce(value: inout [Int: CGFloat], nextValue: () -> [Int: CGFloat]) {
+        value.merge(nextValue()) { _, new in new }
+    }
+}
+
+private struct MeasurePageHeight: View {
+    let page: Int
+    var body: some View {
+        GeometryReader { geo in
+            Color.clear.preference(key: PageHeightKey.self, value: [page: geo.size.height])
+        }
+    }
+}
+
+// MARK: - Paging Height Sheet
+
+struct PagingHeightSheetContent: View {
+    @State private var currentPage = 0
+    @State private var pageHeights: [Int: CGFloat] = [:]
+    private let pageCount = 3
+
+    var body: some View {
+        VStack(spacing: 16) {
+            GrabHandle()
+
+            Text("Paging Height")
+                .font(.title3.bold())
+
+            Text("좌우로 스와이프하면 페이지마다\n다른 높이의 콘텐츠가 표시됩니다.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+
+            TabView(selection: $currentPage) {
+                ForEach(0 ..< pageCount, id: \.self) { index in
+                    pageContent(for: index)
+                        .frame(maxHeight: .infinity, alignment: .top)
+                        .background(MeasurePageHeight(page: index))
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+            .frame(height: pageHeights[currentPage] ?? 120)
+            .onPreferenceChange(PageHeightKey.self) { pageHeights = $0 }
+
+            Spacer().frame(height: 16)
+        }
+    }
+
+    @ViewBuilder
+    private func pageContent(for page: Int) -> some View {
+        switch page {
+        case 0:
+            VStack(spacing: 12) {
+                Image(systemName: "1.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.blue)
+                Text("간단한 페이지")
+                    .font(.headline)
+                Text("콘텐츠가 적어 시트가 낮습니다.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+        case 1:
+            VStack(spacing: 10) {
+                Image(systemName: "2.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.orange)
+                Text("중간 페이지")
+                    .font(.headline)
+                ForEach(1 ... 4, id: \.self) { i in
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.orange)
+                            .font(.caption)
+                        Text("항목 \(i)")
+                            .font(.subheadline)
+                        Spacer()
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 12)
+                    .background(Color.orange.opacity(0.08))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+        default:
+            VStack(spacing: 10) {
+                Image(systemName: "3.circle.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(.green)
+                Text("긴 페이지")
+                    .font(.headline)
+                Text("콘텐츠가 많아 시트가 높아집니다.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                ForEach(1 ... 8, id: \.self) { i in
+                    HStack(spacing: 12) {
+                        Circle()
+                            .fill(Color.green.opacity(0.2))
+                            .frame(width: 32, height: 32)
+                            .overlay(
+                                Text("\(i)")
+                                    .font(.caption.bold())
+                                    .foregroundColor(.green)
+                            )
+                        Text("리스트 아이템 \(i)")
+                            .font(.subheadline)
+                        Spacer()
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 12)
+                    .background(Color.green.opacity(0.05))
+                    .cornerRadius(8)
+                }
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+        }
     }
 }
 
