@@ -60,6 +60,8 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
     private var currentSheetHeight: CGFloat = SheetConstants.defaultSheetHeight
     private var keyboardOffset: CGFloat = 0
 
+    private let hasHeader: Bool
+
     private var needsScroll = false
     private var isDismissing = false
     private var isSheetVisible = false
@@ -84,6 +86,7 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
         self.avoidsKeyboard = avoidsKeyboard
         self.edgeSwipeBackToDismiss = edgeSwipeBackToDismiss
         self.onDismiss = onDismiss
+        self.hasHeader = !(Header.self == EmptyView.self)
         super.init(nibName: nil, bundle: nil)
     }
 
@@ -147,22 +150,24 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
         sheetView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(sheetView)
 
-        // Header container
-        headerContainerView.backgroundColor = .clear
-        headerContainerView.translatesAutoresizingMaskIntoConstraints = false
-        sheetView.addSubview(headerContainerView)
+        // Header container (only when header is provided)
+        if hasHeader {
+            headerContainerView.backgroundColor = .clear
+            headerContainerView.translatesAutoresizingMaskIntoConstraints = false
+            sheetView.addSubview(headerContainerView)
 
-        // Header hosting controller
-        let headerHosting = ALHostingController(rootView: header)
-        headerHosting.sizingOptions = .intrinsicContentSize
-        headerHosting.view.backgroundColor = .clear
-        headerHosting.view.translatesAutoresizingMaskIntoConstraints = false
-        headerHosting.onIntrinsicSizeChange = { [weak self] in
-            self?.view.setNeedsLayout()
+            // Header hosting controller
+            let headerHosting = ALHostingController(rootView: header)
+            headerHosting.sizingOptions = .intrinsicContentSize
+            headerHosting.view.backgroundColor = .clear
+            headerHosting.view.translatesAutoresizingMaskIntoConstraints = false
+            headerHosting.onIntrinsicSizeChange = { [weak self] in
+                self?.view.setNeedsLayout()
+            }
+            addChild(headerHosting)
+            headerContainerView.addSubview(headerHosting.view)
+            headerHosting.didMove(toParent: self)
         }
-        addChild(headerHosting)
-        headerContainerView.addSubview(headerHosting.view)
-        headerHosting.didMove(toParent: self)
 
         // Scroll view
         scrollView.delegate = self
@@ -186,9 +191,11 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
         contentHosting.didMove(toParent: self)
         contentHostingController = contentHosting
 
-        // Header drag gesture
-        let headerPan = UIPanGestureRecognizer(target: self, action: #selector(handleHeaderPanGesture(_:)))
-        headerContainerView.addGestureRecognizer(headerPan)
+        // Header drag gesture (only when header is provided)
+        if hasHeader {
+            let headerPan = UIPanGestureRecognizer(target: self, action: #selector(handleHeaderPanGesture(_:)))
+            headerContainerView.addGestureRecognizer(headerPan)
+        }
 
         // Background tap to dismiss
         let backgroundTap = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap(_:)))
@@ -196,9 +203,7 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
     }
 
     private func setupConstraints() {
-        guard let headerHosting = children.first,
-              let contentView = contentHostingController?.view else { return }
-        let headerView = headerHosting.view!
+        guard let contentView = contentHostingController?.view else { return }
 
         // Sheet view
         sheetBottomConstraint = sheetView.bottomAnchor.constraint(
@@ -216,28 +221,41 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
             sheetHeightConstraint,
         ])
 
-        // Header container
-        NSLayoutConstraint.activate([
-            headerContainerView.topAnchor.constraint(equalTo: sheetView.topAnchor),
-            headerContainerView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
-            headerContainerView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
-        ])
+        if hasHeader {
+            guard let headerHosting = children.first else { return }
+            let headerView = headerHosting.view!
 
-        // Header hosting view (pinned to container, intrinsic height drives container)
-        NSLayoutConstraint.activate([
-            headerView.topAnchor.constraint(equalTo: headerContainerView.topAnchor),
-            headerView.leadingAnchor.constraint(equalTo: headerContainerView.leadingAnchor),
-            headerView.trailingAnchor.constraint(equalTo: headerContainerView.trailingAnchor),
-            headerView.bottomAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
-        ])
+            // Header container
+            NSLayoutConstraint.activate([
+                headerContainerView.topAnchor.constraint(equalTo: sheetView.topAnchor),
+                headerContainerView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
+                headerContainerView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
+            ])
 
-        // Scroll view
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
-            scrollView.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
-        ])
+            // Header hosting view (pinned to container, intrinsic height drives container)
+            NSLayoutConstraint.activate([
+                headerView.topAnchor.constraint(equalTo: headerContainerView.topAnchor),
+                headerView.leadingAnchor.constraint(equalTo: headerContainerView.leadingAnchor),
+                headerView.trailingAnchor.constraint(equalTo: headerContainerView.trailingAnchor),
+                headerView.bottomAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
+            ])
+
+            // Scroll view (below header)
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: headerContainerView.bottomAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
+            ])
+        } else {
+            // Scroll view (directly at top of sheet)
+            NSLayoutConstraint.activate([
+                scrollView.topAnchor.constraint(equalTo: sheetView.topAnchor),
+                scrollView.leadingAnchor.constraint(equalTo: sheetView.leadingAnchor),
+                scrollView.trailingAnchor.constraint(equalTo: sheetView.trailingAnchor),
+                scrollView.bottomAnchor.constraint(equalTo: sheetView.bottomAnchor),
+            ])
+        }
 
         // Content hosting view → scroll view content layout guide
         NSLayoutConstraint.activate([
@@ -334,7 +352,7 @@ final class BottomSheetALController<Header: View, Content: View>: UIViewControll
         let viewHeight = view.bounds.height
         guard viewHeight > 0 else { return }
 
-        let headerHeight = headerContainerView.bounds.height
+        let headerHeight = hasHeader ? headerContainerView.bounds.height : 0
         let contentHeight = contentView.intrinsicContentSize.height
         guard contentHeight != UIView.noIntrinsicMetric else { return }
 
