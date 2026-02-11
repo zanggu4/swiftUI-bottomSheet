@@ -281,32 +281,30 @@ struct DynamicHeightSheetContent: View {
 
             // 추가/제거 버튼
             HStack(spacing: 12) {
-                Button {
-                    items.append("Item \(items.count + 1)")
-                } label: {
-                    Label("추가", systemImage: "plus.circle.fill")
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.blue)
-                        .cornerRadius(10)
-                }
-
-                Button {
-                    if items.count > 1 {
-                        items.removeLast()
+                Label("추가", systemImage: "plus.circle.fill")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.white)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.blue)
+                    .cornerRadius(10)
+                    .onTapGesture {
+                        items.append("Item \(items.count + 1)")
                     }
-                } label: {
-                    Label("제거", systemImage: "minus.circle.fill")
-                        .font(.subheadline.bold())
-                        .foregroundColor(.white)
-                        .padding(.vertical, 10)
-                        .frame(maxWidth: .infinity)
-                        .background(items.count > 1 ? Color.red : Color.gray)
-                        .cornerRadius(10)
-                }
-                .disabled(items.count <= 1)
+
+                Label("제거", systemImage: "minus.circle.fill")
+                    .font(.subheadline.bold())
+                    .foregroundColor(.white)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(items.count > 1 ? Color.red : Color.gray)
+                    .cornerRadius(10)
+                    .onTapGesture {
+                        if items.count > 1 {
+                            items.removeLast()
+                        }
+                    }
+                    .disabled(items.count <= 1)
             }
             .padding(.horizontal, 16)
 
